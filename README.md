@@ -1,3 +1,1 @@
-"# ZombieShooter" 
-"# ZombieShooter" 
-"# ZombieShooter" 
+Weszłeś w pliki gry brawo!!!

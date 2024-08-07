@@ -1,32 +1,64 @@
 let player;
-let zombies = [];
 let bullets = [];
-let lastShotTime = 0;
-let shotCooldown = 1500; // 1.5 seconds
-let bulletSpeed = 5;
-let points = 0;
+let zombies = [];
+let score = 0;
 let level = 1;
-const MAX_LEVELS = 100;
+let points = 0;
+let playerSpeed = 2;
+let bulletCooldown = 1500;
+let lastShot = 0;
 let gameOver = false;
-let gameLost = false;
-let showShop = false;
-let retryButton, exitButton, shopButton, smgButton, rifleButton, minigunButton;
+let shop = false;
+let weapon = 'pistol';
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
-    startNewGame();
+    player = new Player();
+    spawnZombies(5);
 }
 
 function draw() {
-    background(0);
     if (gameOver) {
-        showGameOverMenu();
+        background(255);
+        textSize(32);
+        fill(0);
+        textAlign(CENTER, CENTER);
+        text('Przegrałeś', width / 2, height / 2 - 40);
+        textSize(24);
+        text('Punkty: ' + score, width / 2, height / 2);
+        text('Level: ' + level, width / 2, height / 2 + 40);
+        createButton('Od nowa')
+            .position(width / 2 - 50, height / 2 + 80)
+            .mousePressed(resetGame);
+        createButton('Wyjdz')
+            .position(width / 2 - 50, height / 2 + 120)
+            .mousePressed(closeGame);
+        noLoop();
         return;
     }
-    if (showShop) {
-        showShopMenu();
+
+    if (shop) {
+        background(255);
+        textSize(32);
+        fill(0);
+        textAlign(CENTER, CENTER);
+        text('Sklep', width / 2, height / 2 - 80);
+        textSize(24);
+        text('Punkty: ' + points, width / 2, height / 2 - 40);
+        createButton('SMG (100 pkt)')
+            .position(width / 2 - 50, height / 2)
+            .mousePressed(() => buyWeapon('smg', 100));
+        createButton('Karabin (500 pkt)')
+            .position(width / 2 - 50, height / 2 + 40)
+            .mousePressed(() => buyWeapon('rifle', 500));
+        createButton('Mini Gun (1500 pkt)')
+            .position(width / 2 - 50, height / 2 + 80)
+            .mousePressed(() => buyWeapon('minigun', 1500));
+        noLoop();
         return;
     }
+
+    background(0, 255, 0);
 
     player.move();
     player.display();
@@ -39,209 +71,131 @@ function draw() {
     for (let zombie of zombies) {
         zombie.move();
         zombie.display();
+
+        if (dist(player.x, player.y, zombie.x, zombie.y) < 25) {
+            gameOver = true;
+        }
     }
 
-    checkCollisions();
-    checkPlayerCollision();
-    checkLevelCompletion();
+    bullets = bullets.filter(bullet => !bullet.offscreen());
+    zombies = zombies.filter(zombie => !zombie.hit);
 
-    fill(255);
+    if (zombies.length === 0) {
+        level++;
+        if (level % 20 === 0) {
+            shop = true;
+        } else {
+            spawnZombies(level * 5);
+        }
+    }
+
     textSize(24);
-    text(`Points: ${points}`, 10, 30);
-    text(`Level: ${level}`, 10, 60);
+    fill(0);
+    text('Punkty: ' + score, 10, 30);
+    text('Level: ' + level, 10, 60);
 }
 
 function mousePressed() {
-    if (gameOver || showShop) return;
-    let currentTime = millis();
-    if (currentTime - lastShotTime > shotCooldown) {
-        bullets.push(new Bullet(player.x, player.y, mouseX, mouseY, bulletSpeed));
-        if (shotCooldown === 1000) {
-            // Double shot for SMG
-            bullets.push(new Bullet(player.x, player.y, mouseX, mouseY + 10, bulletSpeed));
-        }
-        lastShotTime = currentTime;
+    if (millis() - lastShot > bulletCooldown) {
+        bullets.push(new Bullet(player.x, player.y));
+        lastShot = millis();
     }
 }
 
-function checkCollisions() {
-    for (let i = zombies.length - 1; i >= 0; i--) {
-        for (let j = bullets.length - 1; j >= 0; j--) {
-            if (dist(zombies[i].x, zombies[i].y, bullets[j].x, bullets[j].y) < 20) {
-                zombies.splice(i, 1);
-                bullets.splice(j, 1);
-                points += 3;
+function spawnZombies(num) {
+    for (let i = 0; i < num; i++) {
+        let x, y;
+        do {
+            x = random(width);
+            y = random(height);
+        } while (dist(player.x, player.y, x, y) < 100);
+        zombies.push(new Zombie(x, y));
+    }
+}
+
+function buyWeapon(type, cost) {
+    if (points >= cost) {
+        points -= cost;
+        weapon = type;
+        switch (type) {
+            case 'smg':
+                bulletCooldown = 1000;
                 break;
-            }
+            case 'rifle':
+                bulletCooldown = 500;
+                break;
+            case 'minigun':
+                bulletCooldown = 200;
+                break;
         }
+        shop = false;
+        loop();
     }
 }
 
-function checkPlayerCollision() {
-    for (let zombie of zombies) {
-        if (dist(zombie.x, zombie.y, player.x, player.y) < 20) {
-            gameOver = true;
-            gameLost = true;
-            break;
-        }
-    }
-}
-
-function checkLevelCompletion() {
-    if (zombies.length === 0 && level < MAX_LEVELS) {
-        if (level % 20 === 0) {
-            showShop = true;
-        } else {
-            level++;
-            spawnZombies(level);
-        }
-    } else if (level === MAX_LEVELS && zombies.length === 0) {
-        gameOver = true;
-    }
-}
-
-function spawnZombies(count) {
-    for (let i = 0; i < count; i++) {
-        zombies.push(new Zombie(random(width), random(height)));
-    }
-}
-
-function showGameOverMenu() {
-    fill(255);
-    textSize(32);
-    textAlign(CENTER, CENTER);
-    if (gameLost) {
-        text("Przegrałeś", width / 2, height / 2 - 80);
-    } else {
-        text("Zgłoś się do Silvera po range", width / 2, height / 2 - 80);
-    }
-
-    if (!retryButton) {
-        retryButton = createButton('Od nowa');
-        retryButton.position(width / 2 - 50, height / 2 - 10);
-        retryButton.mousePressed(() => {
-            gameOver = false;
-            gameLost = false;
-            removeButtons();
-            startNewGame();
-        });
-    }
-
-    if (!exitButton) {
-        exitButton = createButton('Wyjdź');
-        exitButton.position(width / 2 - 50, height / 2 + 30);
-        exitButton.mousePressed(() => window.close());
-    }
-}
-
-function showShopMenu() {
-    fill(255);
-    textSize(32);
-    textAlign(CENTER, CENTER);
-    text("Sklep", width / 2, height / 2 - 100);
-
-    textSize(24);
-    text(`Punkty: ${points}`, width / 2, height / 2 - 60);
-
-    if (!smgButton) {
-        smgButton = createButton('SMG (100 punktów)');
-        smgButton.position(width / 2 - 100, height / 2 - 20);
-        smgButton.mousePressed(() => {
-            if (points >= 100) {
-                points -= 100;
-                shotCooldown = 1000;
-                bulletSpeed = 7;
-                removeButtons();
-                startNextLevel();
-            }
-        });
-    }
-
-    if (!rifleButton) {
-        rifleButton = createButton('Karabin (500 punktów)');
-        rifleButton.position(width / 2 - 100, height / 2 + 20);
-        rifleButton.mousePressed(() => {
-            if (points >= 500) {
-                points -= 500;
-                shotCooldown = 500;
-                bulletSpeed = 10;
-                removeButtons();
-                startNextLevel();
-            }
-        });
-    }
-
-    if (!minigunButton) {
-        minigunButton = createButton('Minigun (1500 punktów)');
-        minigunButton.position(width / 2 - 100, height / 2 + 60);
-        minigunButton.mousePressed(() => {
-            if (points >= 1500) {
-                points -= 1500;
-                shotCooldown = 200;
-                bulletSpeed = 15;
-                removeButtons();
-                startNextLevel();
-            }
-        });
-    }
-}
-
-function removeButtons() {
-    if (retryButton) {
-        retryButton.remove();
-        retryButton = null;
-    }
-    if (exitButton) {
-        exitButton.remove();
-        exitButton = null;
-    }
-    if (smgButton) {
-        smgButton.remove();
-        smgButton = null;
-    }
-    if (rifleButton) {
-        rifleButton.remove();
-        rifleButton = null;
-    }
-    if (minigunButton) {
-        minigunButton.remove();
-        minigunButton = null;
-    }
-}
-
-function startNewGame() {
+function resetGame() {
+    gameOver = false;
+    score = 0;
+    level = 1;
+    points = 0;
     player = new Player();
     bullets = [];
     zombies = [];
-    points = 0;
-    level = 1;
-    shotCooldown = 1500;
-    bulletSpeed = 5;
-    spawnZombies(level);
+    spawnZombies(5);
+    loop();
 }
 
-function startNextLevel() {
-    showShop = false;
-    spawnZombies(level);
+function closeGame() {
+    window.close();
 }
 
 class Player {
     constructor() {
         this.x = width / 2;
         this.y = height / 2;
-        this.size = 20;
+        this.size = 50;
     }
 
     move() {
-        if (keyIsDown(87)) this.y -= 2; // W
-        if (keyIsDown(83)) this.y += 2; // S
-        if (keyIsDown(65)) this.x -= 2; // A
-        if (keyIsDown(68)) this.x += 2; // D
+        if (keyIsDown(87) && this.y > 0) { // W key
+            this.y -= playerSpeed;
+        }
+        if (keyIsDown(83) && this.y < height - this.size) { // S key
+            this.y += playerSpeed;
+        }
+        if (keyIsDown(65) && this.x > 0) { // A key
+            this.x -= playerSpeed;
+        }
+        if (keyIsDown(68) && this.x < width - this.size) { // D key
+            this.x += playerSpeed;
+        }
     }
 
     display() {
         fill(0, 0, 255);
-        ellipse(this.x, this.y, this.size);
+        rect(this.x, this.y, this.size, this.size);
+    }
+}
+
+class Bullet {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.size = 10;
+        this.speed = 10;
+    }
+
+    move() {
+        this.y -= this.speed;
+    }
+
+    display() {
+        fill(255, 0, 0);
+        ellipse(this.x, this.y, this.size, this.size);
+    }
+
+    offscreen() {
+        return this.y < 0;
     }
 }
 
@@ -249,7 +203,8 @@ class Zombie {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.size = 20;
+        this.size = 50;
+        this.hit = false;
     }
 
     move() {
@@ -259,28 +214,7 @@ class Zombie {
     }
 
     display() {
-        fill(255, 0, 0);
-        ellipse(this.x, this.y, this.size);
-    }
-}
-
-class Bullet {
-    constructor(x, y, targetX, targetY, speed) {
-        this.x = x;
-        this.y = y;
-        this.size = 5;
-        let angle = atan2(targetY - y, targetX - x);
-        this.vx = cos(angle) * speed;
-        this.vy = sin(angle) * speed;
-    }
-
-    move() {
-        this.x += this.vx;
-        this.y += this.vy;
-    }
-
-    display() {
-        fill(255, 255, 0);
-        ellipse(this.x, this.y, this.size);
+        fill(0, 255, 0);
+        rect(this.x, this.y, this.size, this.size);
     }
 }

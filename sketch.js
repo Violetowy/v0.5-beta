@@ -10,6 +10,7 @@ let lastShot = 0;
 let gameOver = false;
 let shop = false;
 let weapon = 'pistol';
+let resetButton, quitButton, smgButton, rifleButton, minigunButton;
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
@@ -27,12 +28,19 @@ function draw() {
         textSize(24);
         text('Punkty: ' + score, width / 2, height / 2);
         text('Level: ' + level, width / 2, height / 2 + 40);
-        createButton('Od nowa')
-            .position(width / 2 - 50, height / 2 + 80)
-            .mousePressed(resetGame);
-        createButton('Wyjdz')
-            .position(width / 2 - 50, height / 2 + 120)
-            .mousePressed(closeGame);
+
+        if (!resetButton) {
+            resetButton = createButton('Od nowa');
+            resetButton.position(width / 2 - 50, height / 2 + 80);
+            resetButton.mousePressed(resetGame);
+        }
+
+        if (!quitButton) {
+            quitButton = createButton('Wyjdz');
+            quitButton.position(width / 2 - 50, height / 2 + 120);
+            quitButton.mousePressed(closeGame);
+        }
+
         noLoop();
         return;
     }
@@ -45,15 +53,25 @@ function draw() {
         text('Sklep', width / 2, height / 2 - 80);
         textSize(24);
         text('Punkty: ' + points, width / 2, height / 2 - 40);
-        createButton('SMG (100 pkt)')
-            .position(width / 2 - 50, height / 2)
-            .mousePressed(() => buyWeapon('smg', 100));
-        createButton('Karabin (500 pkt)')
-            .position(width / 2 - 50, height / 2 + 40)
-            .mousePressed(() => buyWeapon('rifle', 500));
-        createButton('Mini Gun (1500 pkt)')
-            .position(width / 2 - 50, height / 2 + 80)
-            .mousePressed(() => buyWeapon('minigun', 1500));
+
+        if (!smgButton) {
+            smgButton = createButton('SMG (100 pkt)');
+            smgButton.position(width / 2 - 50, height / 2);
+            smgButton.mousePressed(() => buyWeapon('smg', 100));
+        }
+
+        if (!rifleButton) {
+            rifleButton = createButton('Karabin (500 pkt)');
+            rifleButton.position(width / 2 - 50, height / 2 + 40);
+            rifleButton.mousePressed(() => buyWeapon('rifle', 500));
+        }
+
+        if (!minigunButton) {
+            minigunButton = createButton('Mini Gun (1500 pkt)');
+            minigunButton.position(width / 2 - 50, height / 2 + 80);
+            minigunButton.mousePressed(() => buyWeapon('minigun', 1500));
+        }
+
         noLoop();
         return;
     }
@@ -129,6 +147,7 @@ function buyWeapon(type, cost) {
                 break;
         }
         shop = false;
+        removeShopButtons();
         loop();
     }
 }
@@ -142,11 +161,38 @@ function resetGame() {
     bullets = [];
     zombies = [];
     spawnZombies(5);
+    removeGameOverButtons();
     loop();
 }
 
 function closeGame() {
     window.close();
+}
+
+function removeGameOverButtons() {
+    if (resetButton) {
+        resetButton.remove();
+        resetButton = null;
+    }
+    if (quitButton) {
+        quitButton.remove();
+        quitButton = null;
+    }
+}
+
+function removeShopButtons() {
+    if (smgButton) {
+        smgButton.remove();
+        smgButton = null;
+    }
+    if (rifleButton) {
+        rifleButton.remove();
+        rifleButton = null;
+    }
+    if (minigunButton) {
+        minigunButton.remove();
+        minigunButton = null;
+    }
 }
 
 class Player {
@@ -208,9 +254,11 @@ class Zombie {
     }
 
     move() {
-        let angle = atan2(player.y - this.y, player.x - this.x);
-        this.x += cos(angle);
-        this.y += sin(angle);
+        if (!shop) {
+            let angle = atan2(player.y - this.y, player.x - this.x);
+            this.x += cos(angle);
+            this.y += sin(angle);
+        }
     }
 
     display() {

@@ -1,1 +1,1 @@
-Weszłeś w pliki gry brawo!!!
+Gra bo mi się nudizlo pozdrawiam ;3
